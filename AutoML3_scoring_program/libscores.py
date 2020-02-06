@@ -364,14 +364,16 @@ def auc_metric(solution, prediction, task='binary.classification'):
     label_num = solution.shape[1]
     auc = np.empty(label_num)
     for k in range(label_num):
-        r_ = tiedrank(prediction[:, k])
-        s_ = solution[:, k]
-        if sum(s_) == 0: print('WARNING: no positive class example in class {}'.format(k + 1))
-        npos = sum(s_ == 1)
-        nneg = sum(s_ < 1)
-        auc[k] = (sum(r_[s_ == 1]) - npos * (npos + 1) / 2) / (nneg * npos)
+        #r_ = tiedrank(prediction[:, k])
+        #s_ = solution[:, k]
+#        if sum(s_) == 0: print('WARNING: no positive class example in class {}'.format(k + 1))
+        #npos = sum(s_ == 1)
+        #nneg = sum(s_ < 1)
+        #auc[k] = (sum(r_[s_ == 1]) - npos * (npos + 1) / 2) / (nneg * npos)
+        auc[k] = metrics.roc_auc_score(solution[:, k], prediction[:, k])
         # print('AUC[%d]=' % k + '%5.2f' % auc[k])
-    return 2 * mvmean(auc) - 1
+    return np.mean(auc)
+#    return 2 * mvmean(auc) - 1
 
     #return  mvmean(auc)
 
@@ -610,15 +612,19 @@ def show_platform():
 def compute_all_scores(solution, prediction):
     ''' Compute all the scores and return them as a dist'''
     missing_score = -0.999999
-    scoring = {'BAC (multilabel)': nbac_binary_score,
+    scoring = {
+        """
+               'BAC (multilabel)': nbac_binary_score,
                'BAC (multiclass)': nbac_multiclass_score,
                'F1  (multilabel)': f1_binary_score,
                'F1  (multiclass)': f1_multiclass_score,
                'Regression ABS  ': a_metric,
                'Regression R2   ': r2_metric,
+        """
                'AUC (multilabel)': auc_metric,
-               'PAC (multilabel)': npac_binary_score,
-               'PAC (multiclass)': npac_multiclass_score}
+#               'PAC (multilabel)': npac_binary_score,
+#               'PAC (multiclass)': npac_multiclass_score
+               }
     # Normalize/sanitize inputs
     [csolution, cprediction] = normalize_array(solution, prediction)
     solution = sanitize_array(solution);
