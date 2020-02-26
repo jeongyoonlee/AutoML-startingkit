@@ -1,2 +1,0 @@
-#!/bin/bash
-python3 AutoML3_ingestion_program/ingestion.py public_data AutoML3_sample_predictions public_data AutoML3_ingestion_program AutoGBT

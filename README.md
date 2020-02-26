@@ -1,44 +1,36 @@
-==================== This is an example AutoML3 starting kit ====================
+# AutoML3 Starting Kit
 
-ALL INFORMATION, SOFTWARE, DOCUMENTATION, AND DATA ARE PROVIDED "AS-IS".
-UNIVERSITE PARIS SUD, INRIA, CHALEARN, AND/OR OTHER ORGANIZERS 
-OR CODE AUTHORS DISCLAIM ANY EXPRESSED OR IMPLIED WARRANTIES.
+This repository provides a revised version of AutoML3 starting kit.
 
-===== Usage:
-Zip the contents of AutoML3_sample_code_submission (without the directory structure)
+The original AutoML3 starting kit and public input data distributed by the organizers are available at [the AutoML3 competition site](https://competitions.codalab.org/competitions/19836#participate).
 
-	zip mysubmission.zip AutoML3_sample_code_submission/*
+# How to Run
 
-and submit to Codalab competition "Participate>Submit/View results".
+You can run the data ingestion, model training and scoring as follows:
+```bash
+$ ./run.sh [model folder] [data folder]
+```
+For example, to run the starting kit with sample model code and data, run `run.sh` as follows:
+```bash
+$ ./run.sh AutoML3_sample_code_submission AutoML3_sample_data
+```
 
+The output files including predictions and scores are saved in `build/[model name]`.
 
-===== Local development and testing:
+For example, the output files from the run with the sample model code and data will be available as follows:
 
-Contents:
-AutoML3_ingestion_program/: The code and libraries used on Codalab to run your submmission.
-AutoML3_scoring_program/: The code and libraries used on Codalab to score your submmission.
-AutoML3_sample_code_submission/: An example of code submission you can use as template.
-AutoML3_sample_data/: Some sample data to test your code before you submit it.
-AutoML3_sample_ref/: Reference data required to evaluate your submission.
-
-To make your own submission, modify AutoML3_sample_code_submission/. You can then 
-test it in the exact same environment as the Codalab environment using docker.
-
-If you are new to docker, install docker from https://docs.docker.com/get-started/.
-Then, at the shell, run:
-
-	docker run -it -u root -v $(pwd):/app/codalab codalab/codalab-legacy:py3 bash
-
-You will then be able to run the ingestion program (to produce predictions) and the
-scoring program (to evaluate your predictions) on toy sample data.
-1) Ingestion program (using default directories):
-	python3 AutoML3_ingestion_program/ingestion.py
-	 
-Eventually, substitute AutoML3_sample_data with other public data. The full call is:
-	python3 AutoML3_ingestion_program/ingestion.py AutoML3_sample_data AutoML3_sample_predictions AutoML3_ingestion_program AutoML3_sample_submission
-
-2) Scoring program (using default directories):
-	python3 AutoML3_scoring_program/score.py
-
-The full call is:
-	python3 AutoML3_scoring_program/score.py AutoML3_sample_data AutoML3_sample_predictions AutoML3_scoring_output
+```bash
+$ ls -alF ./build/AutoML3_sample_code_submission/
+total 2952
+drwxr-xr-x  11 jeong  staff   352B Feb 25 17:00 ./
+drwxr-xr-x   4 jeong  staff   128B Feb 25 16:59 ../
+-rw-r--r--   1 jeong  staff   414K Feb 25 17:00 ada_test1.predict
+-rw-r--r--   1 jeong  staff   415K Feb 25 17:00 ada_test2.predict
+-rw-r--r--   1 jeong  staff   416K Feb 25 17:00 ada_test3.predict
+drwxr-xr-x   3 jeong  staff    96B Feb 25 17:00 res/
+-rw-r--r--   1 jeong  staff    44K Feb 25 17:00 rl_test1.predict
+-rw-r--r--   1 jeong  staff    43K Feb 25 17:00 rl_test2.predict
+-rw-r--r--   1 jeong  staff   128K Feb 25 17:00 rl_test3.predict
+-rw-r--r--   1 jeong  staff   2.7K Feb 25 17:00 scores.html
+-rw-r--r--   1 jeong  staff    73B Feb 25 17:00 scores.txt
+```

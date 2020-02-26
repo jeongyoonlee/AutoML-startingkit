@@ -1,7 +1,9 @@
 .DS_Store
-AutoGBT
-__pycache__
+.vscode/
+.ipynb_checkpoints/
+__pycache__/
+build
+data
+res/
 *.predict
 AutoML3_scoring_output
-public_data
-AutoML3_sample_predictions/res/metadata
