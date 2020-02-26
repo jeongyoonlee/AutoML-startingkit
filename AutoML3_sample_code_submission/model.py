@@ -14,6 +14,8 @@ from os.path import isfile
 import random
 import time
 from sklearn.ensemble import GradientBoostingClassifier
+
+
 class Model:
     def __init__(self,datainfo,timeinfo):
         '''
@@ -76,13 +78,13 @@ class Model:
 	    # subsample the data for efficient processing
         removeperc=0.9
         if removeperc>0:
-                rem_samples=int(num_train_samples*removeperc)
-                skip = sorted(random.sample(range(num_train_samples),num_train_samples-rem_samples))
-                num_train_samples=num_train_samples-rem_samples
+            rem_samples=int(num_train_samples*removeperc)
+            skip = sorted(random.sample(range(num_train_samples),num_train_samples-rem_samples))
+            num_train_samples=num_train_samples-rem_samples
 
-                X = X[skip,:]
-                y = y[skip,:]
-                self.num_train_samples = X.shape[0]
+            X = X[skip,:]
+            y = y[skip,:]
+            self.num_train_samples = X.shape[0]
 
         if self.is_trained:
             _ = self.clf.set_params(n_estimators=self.clf.n_estimators+1,warm_start=True)
