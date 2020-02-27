@@ -33,8 +33,8 @@ fi
 
 # Train the auto ML model.
 echo "training..."
-python3 AutoML3_ingestion_program/ingestion.py $data_dir $output_dir $data_dir AutoML3_ingestion_program $model_dir
+python3 pipeline/AutoML3_ingestion_program/ingestion.py $data_dir $output_dir $data_dir pipeline/AutoML3_ingestion_program $model_dir
 
 # Predict for test data and score predictions.
 echo "predicting..."
-python3 AutoML3_scoring_program/score.py "$data_dir/*/" $output_dir $output_dir
+python3 pipeline/AutoML3_scoring_program/score.py "$data_dir/*/" $output_dir $output_dir

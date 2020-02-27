@@ -12,7 +12,7 @@ $ ./run.sh [model folder] [data folder]
 ```
 For example, to run the starting kit with sample model code and data, run `run.sh` as follows:
 ```bash
-$ ./run.sh AutoML3_sample_code_submission AutoML3_sample_data
+$ ./run.sh model/AutoML3_sample_code_submission AutoML3_sample_data
 ```
 
 The output files including predictions and scores are saved in `build/[model name]`.
