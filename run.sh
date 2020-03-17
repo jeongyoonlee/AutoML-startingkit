@@ -5,7 +5,7 @@ set -e
 
 # It requires two input arguments: the model and data folder names
 if [ "$1" = "" ] || [ "$2" = "" ]; then
-    echo "USAGE: ./train.sh [model folder] [data folder]"
+    echo "USAGE: ./run.sh [model folder] [data folder]"
     exit 1
 fi
 
@@ -32,6 +32,9 @@ if [ ! -d $output_dir ]; then
 fi
 
 # Train the auto ML model.
+eval "$(conda shell.bash hook)"
+conda activate py36
+
 echo "training..."
 python3 pipeline/AutoML3_ingestion_program/ingestion.py $data_dir $output_dir $data_dir pipeline/AutoML3_ingestion_program $model_dir
 
