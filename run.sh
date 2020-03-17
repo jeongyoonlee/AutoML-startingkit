@@ -5,7 +5,7 @@ set -e
 
 # It requires two input arguments: the model and data folder names
 if [ "$1" = "" ] || [ "$2" = "" ]; then
-    echo "USAGE: ./train.sh [model folder] [data folder]"
+    echo "USAGE: ./run.sh [model folder] [data folder]"
     exit 1
 fi
 
