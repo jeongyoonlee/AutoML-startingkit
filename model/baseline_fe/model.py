@@ -14,7 +14,7 @@ from os.path import isfile
 import time
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
-from uberml.preprocessing import FrequencyEncoder
+from kaggler.preprocessing import FrequencyEncoder
 
 
 SEED = 42
