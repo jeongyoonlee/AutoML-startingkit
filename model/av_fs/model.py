@@ -13,11 +13,14 @@ import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
 import time
 from lightgbm import LGBMClassifier
-from sklearn.model_selection import train_test_split
+import pandas as pd
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from kaggler.preprocessing import FrequencyEncoder
 
 
 SEED = 42
+GINI_THRESHOLD = .1
 
 
 class Model:
@@ -66,33 +69,24 @@ class Model:
         multicategorical_cols = datainfo['loaded_feat_types'][3]
 
         # Get numerical variables and replace NaNs with 0s
-        X = np.nan_to_num(F['numerical'])
+        self.X = np.nan_to_num(F['numerical'])
+        self.y = y
 
         # Frequency encode categorical variables and concatenate them with numerical variables
         if categorical_cols > 0:
             self.cat_encs = FrequencyEncoder()
             X_cat = self.cat_encs.fit_transform(F['CAT']).values
-            X = np.concatenate((X, X_cat), axis=1)
+            self.X = np.concatenate((self.X, X_cat), axis=1)
             del X_cat
 
-        self.num_train_samples = X.shape[0]
-        self.num_feat = X.shape[1]
+        self.num_train_samples = self.X.shape[0]
+        self.num_feat = self.X.shape[1]
         num_train_samples = y.shape[0]
 
-        self.DataX = X
-        self.DataY = y
         print ("The whole available data is: ")
-        print(("Real-FIT: dim(X)= [{:d}, {:d}]").format(self.DataX.shape[0],self.DataX.shape[1]))
-        print(("Real-FIT: dim(y)= [{:d}, {:d}]").format(self.DataY.shape[0], self.num_labels))
+        print(("Real-FIT: dim(X)= [{:d}, {:d}]").format(self.X.shape[0],self.X.shape[1]))
+        print(("Real-FIT: dim(y)= [{:d}, {:d}]").format(self.y.shape[0], self.num_labels))
 
-        X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.25, random_state=SEED)
-        self.clf.fit(X_trn, y_trn,
-                     eval_set=(X_val, y_val),
-                     early_stopping_rounds=10,
-                     eval_metric='auc')
-
-        if (self.num_train_samples != num_train_samples):
-            print("ARRGH: number of samples in X and y do not match!")
         self.is_trained=True
 
     def predict(self, F,datainfo,timeinfo):
@@ -125,6 +119,52 @@ class Model:
             X_cat = self.cat_encs.transform(F['CAT']).values
             X = np.concatenate((X, X_cat), axis=1)
             del X_cat
+
+        # Adversarial validation
+        print('AV: starting adversarial validation...')
+
+        np.random.seed(SEED)
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
+
+        n_trn = self.X.shape[0]
+        n_tst = X.shape[0]
+
+        X_all = np.vstack((self.X, X))
+        y_all = np.concatenate((np.zeros(n_trn,), np.ones(n_tst,)))
+        X_trn, X_val, y_trn, y_val = train_test_split(X_all, y_all, test_size=.25, random_state=SEED)
+        print('AV: ', X_all.shape, y_all.shape)
+
+        ps_all = np.zeros_like(y_all, dtype=float)
+        model_av = LGBMClassifier(n_estimators=1000, subsample=.8, subsample_freq=1, colsample_bytree=.8, importance_type='gain')
+        model_av.fit(X_trn, y_trn,
+                     eval_set=(X_val, y_val),
+                     early_stopping_rounds=10,
+                     eval_metric='auc')
+
+        ps_val = model_av.predict_proba(X_val)[:, 1]
+        av_score = roc_auc_score(y_val, ps_val)
+        print(f'AV: AUC={av_score * 100: 3.2f}')
+
+        imp = pd.DataFrame({'feature': np.arange(X.shape[1]),
+                            'importance': model_av.feature_importances_})
+        imp = imp.sort_values('importance', ascending=False)
+        print(f'AV: feature importance\n{imp.head(10)}')
+
+        cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'][:5].values
+        cols_to_select = [x for x in range(X.shape[1]) if x not in cols_to_drop]
+        print(f'AV: columns to drop: {cols_to_drop}')
+
+        print(f'AV: # of features before selection: {X.shape[1]}')
+        X = X[:, cols_to_select]
+        self.X = self.X[:, cols_to_select]
+        print(f'AV: # of features after selection: {X.shape[1]}')
+
+        # Training
+        X_trn, X_val, y_trn, y_val = train_test_split(self.X, self.y, test_size=.25, random_state=SEED)
+        self.clf.fit(X_trn, y_trn,
+                     eval_set=(X_val, y_val),
+                     early_stopping_rounds=10,
+                     eval_metric='auc')
 
         num_test_samples = X.shape[0]
         if X.ndim > 1: num_feat = X.shape[1]

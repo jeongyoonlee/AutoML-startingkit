@@ -37,7 +37,7 @@ class Model:
         self.num_feat=1
         self.num_labels=1
         self.is_trained=False
-        self.clf = LGBMClassifier(subsample=.8, subsample_freq=1, colsample_bytree=.8, importance_type='gain')
+        self.clf = LGBMClassifier(n_estimators=1000, subsample=.8, subsample_freq=1, colsample_bytree=.8, importance_type='gain')
         # Here you may have parameters and hyper-parameters
 
     def fit(self, F, y, datainfo,timeinfo):
