@@ -12,6 +12,7 @@ import data_converter
 import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
 import time
+from causalml.propensity import calibrate
 from lightgbm import LGBMClassifier
 import pandas as pd
 from sklearn.metrics import roc_auc_score
@@ -128,40 +129,37 @@ class Model:
 
         n_trn = self.X.shape[0]
         n_tst = X.shape[0]
-        n_feature = X.shape[1]
 
         X_all = np.vstack((self.X, X))
         y_all = np.concatenate((np.zeros(n_trn,), np.ones(n_tst,)))
-        X_trn, X_val, y_trn, y_val = train_test_split(X_all, y_all, test_size=.25, random_state=SEED)
         print('AV: ', X_all.shape, y_all.shape)
 
         ps_all = np.zeros_like(y_all, dtype=float)
-        model_av = LGBMClassifier(n_estimators=1000, subsample=.8, subsample_freq=1, colsample_bytree=.8, importance_type='gain')
-        model_av.fit(X_trn, y_trn,
-                     eval_set=(X_val, y_val),
-                     early_stopping_rounds=10,
-                     eval_metric='auc')
+        for i, (i_trn, i_val) in enumerate(cv.split(X_all, y_all)):
 
-        ps_val = model_av.predict_proba(X_val)[:, 1]
-        av_score = roc_auc_score(y_val, ps_val)
+            model_av = LGBMClassifier(n_estimators=1000, subsample=.8, subsample_freq=1, colsample_bytree=.8, importance_type='gain')
+            model_av.fit(X_all[i_trn], y_all[i_trn],
+                        eval_set=(X_all[i_val], y_all[i_val]),
+                        early_stopping_rounds=10,
+                        eval_metric='auc')
+
+            ps_all[i_val] = model_av.predict_proba(X_all[i_val])[:, 1]
+
+        av_score = roc_auc_score(y_all, ps_all)
         print(f'AV: AUC={av_score * 100: 3.2f}')
-
-        imp = pd.DataFrame({'feature': np.arange(n_feature),
-                            'importance': model_av.feature_importances_})
-        imp = imp.sort_values('importance', ascending=False)
-        print(f'AV: feature importance\n{imp.head(10)}')
-
-        cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:5]
-        cols_to_select = [x for x in range(n_feature) if x not in cols_to_drop]
-        print(f'AV: columns to drop: {cols_to_drop}')
-
-        print(f'AV: # of features before selection: {n_feature}')
-        X = X[:, cols_to_select]
-        self.X = self.X[:, cols_to_select]
-        print(f'AV: # of features after selection: {X.shape[1]}')
+        print(f'AV: propensity scores deciles: {np.percentile(ps_all, np.linspace(0, 1, 11))}')
 
         # Training
-        X_trn, X_val, y_trn, y_val = train_test_split(self.X, self.y, test_size=.25, random_state=SEED)
+        idx = np.argsort(ps_all[:n_trn])
+        trn_idx = idx[:int(n_trn * .75)]
+        val_idx = idx[int(n_trn * .75):]
+
+        np.random.shuffle(trn_idx)
+        X_trn = self.X[trn_idx]
+        y_trn = self.y[trn_idx]
+        X_val = self.X[val_idx]
+        y_val = self.y[val_idx]
+
         self.clf.fit(X_trn, y_trn,
                      eval_set=(X_val, y_val),
                      early_stopping_rounds=10,
