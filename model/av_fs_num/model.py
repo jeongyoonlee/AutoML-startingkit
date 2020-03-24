@@ -9,21 +9,24 @@ PLEASE NOTE THAT WE ARE PASSING THE INFO OF THE DATA SET AS AN ADDITIONAL ARGUME
 '''
 import pickle
 import data_converter
-import logging
 import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
 import time
 from lightgbm import LGBMClassifier
-from sklearn.model_selection import train_test_split
+import logging
+import pandas as pd
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold, train_test_split
 
 
 SEED = 42
+GINI_THRESHOLD = .1
 
 
 logging.basicConfig(format='%(asctime)s   %(levelname)s   %(message)s',
                     level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
-                    filename='baseline.log')
+                    filename='av_fs_num.log')
 
 
 params = {'num_leaves': 31,
@@ -81,30 +84,26 @@ class Model:
         logging.info("[***] Overall time spent %5.2f sec" % overall_spenttime)
         logging.info("[***] Dataset time spent %5.2f sec" % dataset_spenttime)
 
-        # only get numerical variables
-        X=F['numerical']
+        date_cols = datainfo['loaded_feat_types'][0]
+        numeric_cols = datainfo['loaded_feat_types'][1]
+        categorical_cols = datainfo['loaded_feat_types'][2]
+        multicategorical_cols = datainfo['loaded_feat_types'][3]
+        logging.info(f'date_cols: {date_cols}')
+        logging.info(f'numeric_cols: {numeric_cols}')
+        logging.info(f'categorical_cols: {categorical_cols}')
 
-        # convert NaN to zeros
-        X = data_converter.replace_missing(X)
+        # Get numerical variables and replace NaNs with 0s
+        self.X = np.nan_to_num(F['numerical'][date_cols:])
+        self.y = y
 
-        self.num_train_samples = X.shape[0]
-        self.num_feat = X.shape[1]
+        self.num_train_samples = self.X.shape[0]
+        self.num_feat = self.X.shape[1]
         num_train_samples = y.shape[0]
 
-        self.DataX = X
-        self.DataY = y
         logging.info ("The whole available data is: ")
-        logging.info(("Real-FIT: dim(X)= [{:d}, {:d}]").format(self.DataX.shape[0],self.DataX.shape[1]))
-        logging.info(("Real-FIT: dim(y)= [{:d}, {:d}]").format(self.DataY.shape[0], self.num_labels))
+        logging.info(("Real-FIT: dim(X)= [{:d}, {:d}]").format(self.X.shape[0],self.X.shape[1]))
+        logging.info(("Real-FIT: dim(y)= [{:d}, {:d}]").format(self.y.shape[0], self.num_labels))
 
-        X_trn, X_val, y_trn, y_val = train_test_split(X, y, test_size=.25, random_state=SEED)
-        self.clf.fit(X_trn, y_trn,
-                     eval_set=(X_val, y_val),
-                     early_stopping_rounds=10,
-                     verbose=10)
-
-        if (self.num_train_samples != num_train_samples):
-            logging.info("ARRGH: number of samples in X and y do not match!")
         self.is_trained=True
 
     def predict(self, F,datainfo,timeinfo):
@@ -124,20 +123,83 @@ class Model:
         logging.info("[***] Overall time spent %5.2f sec" % overall_spenttime)
         logging.info("[***] Dataset time spent %5.2f sec" % dataset_spenttime)
 
-        # only get numerical variables
-        X=F['numerical']
+        date_cols = datainfo['loaded_feat_types'][0]
+        numeric_cols = datainfo['loaded_feat_types'][1]
+        categorical_cols = datainfo['loaded_feat_types'][2]
+        multicategorical_cols = datainfo['loaded_feat_types'][3]
 
-        # convert NaN to zeros
-        X = data_converter.replace_missing(X)
+        # Get numerical variables and replace NaNs with 0s
+        X = np.nan_to_num(F['numerical'][date_cols:])
+
+        # Adversarial validation
+        logging.info('AV: starting adversarial validation...')
+
+        np.random.seed(SEED)
+        cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)
+
+        n_trn = self.X.shape[0]
+        n_tst = X.shape[0]
+        n_feature = X.shape[1]
+
+        X_all = np.vstack((self.X, X))
+        y_all = np.concatenate((np.zeros(n_trn,), np.ones(n_tst,)))
+        X_trn, X_val, y_trn, y_val = train_test_split(X_all, y_all, test_size=.25, random_state=SEED)
+        logging.info(f'AV: {X_all.shape}, {y_all.shape}')
+
+        # Train an adversarial validation classifier
+        ps_all = np.zeros_like(y_all, dtype=float)
+        model_av = LGBMClassifier(**params)
+        model_av.fit(X_trn, y_trn,
+                     eval_set=(X_val, y_val),
+                     early_stopping_rounds=10,
+                     verbose=10)
+
+        ps_val = model_av.predict_proba(X_val)[:, 1]
+        av_score = roc_auc_score(y_val, ps_val)
+        logging.info(f'AV: before feature selection: AUC={av_score * 100: 3.2f}')
+
+        imp = pd.DataFrame({'feature': np.arange(n_feature),
+                            'importance': model_av.feature_importances_})
+        imp = imp.sort_values('importance', ascending=False)
+        logging.info(f'AV: feature importance\n{imp.head(10)}')
+
+        # Select features
+        cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:int(np.ceil(n_feature * .1))]
+        cols_to_select = [x for x in range(n_feature) if x not in cols_to_drop]
+        logging.info(f'AV: columns to drop: {cols_to_drop}')
+
+        model_av = LGBMClassifier(**params)
+        model_av.fit(X_trn[:, cols_to_select], y_trn,
+                     eval_set=(X_val[:, cols_to_select], y_val),
+                     early_stopping_rounds=10,
+                     verbose=10)
+
+        ps_val = model_av.predict_proba(X_val[:, cols_to_select])[:, 1]
+        av_score = roc_auc_score(y_val, ps_val)
+        logging.info(f'AV: after feature selection: AUC={av_score * 100: 3.2f}')
+
+        imp = pd.DataFrame({'feature': cols_to_select,
+                            'importance': model_av.feature_importances_})
+        imp = imp.sort_values('importance', ascending=False)
+        logging.info(f'AV: feature importance\n{imp.head(10)}')
+
+        X = X[:, cols_to_select]
+        self.X = self.X[:, cols_to_select]
+        logging.info(f'AV: # of features after selection: {X.shape[1]}')
+
+        # Training
+        X_trn, X_val, y_trn, y_val = train_test_split(self.X, self.y, test_size=.25, random_state=SEED)
+        self.clf.fit(X_trn, y_trn,
+                     eval_set=(X_val, y_val),
+                     early_stopping_rounds=10,
+                     verbose=10)
 
         num_test_samples = X.shape[0]
-        if X.ndim>1: num_feat = X.shape[1]
+        num_feat = X.shape[1]
         logging.info(("PREDICT: dim(X)= [{:d}, {:d}]").format(num_test_samples, num_feat))
-        if (self.num_feat != num_feat):
-            logging.info("ARRGH: number of features in X does not match training data!")
         logging.info(("PREDICT: dim(y)= [{:d}, {:d}]").format(num_test_samples, self.num_labels))
-        y= self.clf.predict_proba(X)[:, 1]
-        y= np.transpose(y)
+        y = self.clf.predict_proba(X)[:, 1]
+        y = np.transpose(y)
         return y
 
     def save(self, path="./"):
