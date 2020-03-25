@@ -141,7 +141,7 @@ class Model:
 
         X_all = np.vstack((self.X, X))
         y_all = np.concatenate((np.zeros(n_trn,), np.ones(n_tst,)))
-        logging.info('AV: ', X_all.shape, y_all.shape)
+        logging.info(f'AV: {X_all.shape}, {y_all.shape}')
 
         ps_all = np.zeros_like(y_all, dtype=float)
         for i, (i_trn, i_val) in enumerate(cv.split(X_all, y_all)):
