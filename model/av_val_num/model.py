@@ -9,12 +9,12 @@ PLEASE NOTE THAT WE ARE PASSING THE INFO OF THE DATA SET AS AN ADDITIONAL ARGUME
 '''
 import pickle
 import data_converter
+import logging
 import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
 import time
 from causalml.propensity import calibrate
 from lightgbm import LGBMClassifier
-import logging
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
