@@ -156,44 +156,33 @@ class Model:
         X_trn, X_val, y_trn, y_val = train_test_split(X_all, y_all, test_size=.25, random_state=SEED)
         logging.info(f'AV: {X_all.shape}, {y_all.shape}')
 
-        ps_all = np.zeros_like(y_all, dtype=float)
-        model_av = LGBMClassifier(**params)
-        model_av.fit(X_trn, y_trn,
-                     eval_set=(X_val, y_val),
-                     early_stopping_rounds=10,
-                     verbose=10)
+        av_auc = 1.
+        cols = np.arange(n_feature)
+        count = 0
+        while av_auc < .8:
+            model_av = LGBMClassifier(**params)
+            model_av.fit(X_trn[:, cols], y_trn,
+                        eval_set=(X_val[:, cols], y_val),
+                        early_stopping_rounds=10,
+                        verbose=10)
 
-        ps_val = model_av.predict_proba(X_val)[:, 1]
-        av_score = roc_auc_score(y_val, ps_val)
-        logging.info(f'AV: AUC={av_score * 100: 3.2f}')
+            ps_val = model_av.predict_proba(X_val[:, cols])[:, 1]
+            av_auc = roc_auc_score(y_val, ps_val)
+            logging.info(f'AV #{count}: AUC={av_auc * 100: 3.2f}')
 
-        imp = pd.DataFrame({'feature': np.arange(n_feature),
-                            'importance': model_av.feature_importances_})
-        imp = imp.sort_values('importance', ascending=False)
-        logging.info(f'AV: feature importance\n{imp.head(10)}')
+            imp = pd.DataFrame({'feature': np.arange(n_feature),
+                                'importance': model_av.feature_importances_})
+            imp = imp.sort_values('importance', ascending=False)
+            logging.info(f'AV #{count}: feature importance\n{imp.head(10)}')
 
-        # Select features
-        cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:int(np.ceil(n_feature * .1))]
-        cols_to_select = [x for x in range(n_feature) if x not in cols_to_drop]
-        logging.info(f'AV: columns to drop: {cols_to_drop}')
+            # Select features
+            cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:int(np.ceil(n_feature * .1))]
+            cols = [x for x in range(n_feature) if x not in cols_to_drop]
+            logging.info(f'AV #{count}: columns to drop: {cols_to_drop}')
+            count += 1
 
-        model_av = LGBMClassifier(**params)
-        model_av.fit(X_trn[:, cols_to_select], y_trn,
-                     eval_set=(X_val[:, cols_to_select], y_val),
-                     early_stopping_rounds=10,
-                     verbose=10)
-
-        ps_val = model_av.predict_proba(X_val[:, cols_to_select])[:, 1]
-        av_score = roc_auc_score(y_val, ps_val)
-        logging.info(f'AV: after feature selection: AUC={av_score * 100: 3.2f}')
-
-        imp = pd.DataFrame({'feature': cols_to_select,
-                            'importance': model_av.feature_importances_})
-        imp = imp.sort_values('importance', ascending=False)
-        logging.info(f'AV: feature importance\n{imp.head(10)}')
-
-        X = X[:, cols_to_select]
-        self.X = self.X[:, cols_to_select]
+        X = X[:, cols]
+        self.X = self.X[:, cols]
         logging.info(f'AV: # of features after selection: {X.shape[1]}')
 
         # Training

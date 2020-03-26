@@ -210,7 +210,6 @@ class DataManager:
 
 		# Check the available types of features
                 if verbose: print("========================")
-                """
                 if usetime != []:
                         if verbose: print("=== Processing %d Time features " % len(usetime))
                         try:
@@ -232,7 +231,6 @@ class DataManager:
                                 del dfnum
                                 del dd
                         except:	print ("Failed to load numerical variables")
-                """
 
                 if usecat != []: # categorical features will be loaded as numbers for efficiency
                         if verbose: print("=== Processing %d Categorical features " % len(usecat))
@@ -262,7 +260,6 @@ class DataManager:
                         MV=[]
                 """
                 ntime = 0
-                nnum = 0
                 nmvc = 0
                 MV = []
 
