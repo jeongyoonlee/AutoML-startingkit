@@ -221,7 +221,6 @@ class DataManager:
                                 del dftime
                                 del ddt
                         except:	print ("Failed to load time variables")
-                """
 
                 if usenum != []:
                         if verbose: print("=== Processing %d Numerical features " % len(usenum))
@@ -233,6 +232,7 @@ class DataManager:
                                 del dfnum
                                 del dd
                         except:	print ("Failed to load numerical variables")
+                """
 
                 if usecat != []: # categorical features will be loaded as numbers for efficiency
                         if verbose: print("=== Processing %d Categorical features " % len(usecat))
@@ -240,21 +240,7 @@ class DataManager:
                                 dfcat = pd.read_csv(filename, 	header=None, names=self.feat_type[usecat], usecols=usecat,dtype=object, delim_whitespace=True, na_values='NaN')
                                 ncat=dfcat.shape[1]
                                 CAT=dfcat
-
-                                # Treat categorical variables as integers or perform hash encoding (one hot encoding is far more expensive)
-#                                catnumeric_dataset=np.array(dfcat)
-                                #print("Tipo catego")
-                                #print (catnumeric_dataset.dtype)
-                                #enca = OrdinalEncoder().fit(dfcat)
-                                #catnumeric_dataset = enca.transform(dfcat)
-                                #catnumeric_dataset = np.array(catnumeric_dataset)
-
-#                                ncat = catnumeric_dataset.shape[1]
-#                                concadat= np.concatenate((concadat,catnumeric_dataset),axis=1)
-#                                print (catnumeric_dataset)
-#                                #np.savetxt('categ.csv',catnumeric_dataset,delimiter=',')
                                 del dfcat
-#                                del catnumeric_dataset
                         except:
                                 print ("Failed to load Categorical variables")
                                 CAT=[]
@@ -276,6 +262,7 @@ class DataManager:
                         MV=[]
                 """
                 ntime = 0
+                nnum = 0
                 nmvc = 0
                 MV = []
 
