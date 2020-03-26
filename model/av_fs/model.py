@@ -159,7 +159,7 @@ class Model:
         av_auc = 1.
         cols = np.arange(n_feature)
         count = 0
-        while av_auc < .8:
+        while av_auc > .8:
             model_av = LGBMClassifier(**params)
             model_av.fit(X_trn[:, cols], y_trn,
                         eval_set=(X_val[:, cols], y_val),
