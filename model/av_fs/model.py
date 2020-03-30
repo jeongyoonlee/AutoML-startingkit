@@ -17,6 +17,7 @@ from lightgbm import LGBMClassifier
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.tree import DecisionTreeClassifier
 from kaggler.preprocessing import FrequencyEncoder
 
 
@@ -170,15 +171,19 @@ class Model:
             av_auc = roc_auc_score(y_val, ps_val)
             logging.info(f'AV #{count}: AUC={av_auc * 100: 3.2f}')
 
-            imp = pd.DataFrame({'feature': np.arange(n_feature),
+            imp = pd.DataFrame({'feature': cols,
                                 'importance': model_av.feature_importances_})
             imp = imp.sort_values('importance', ascending=False)
             logging.info(f'AV #{count}: feature importance\n{imp.head(10)}')
 
             # Select features
-            cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:int(np.ceil(n_feature * .1))]
-            cols = [x for x in range(n_feature) if x not in cols_to_drop]
+            cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:int(np.ceil(len(cols) * .1))]
             logging.info(f'AV #{count}: columns to drop: {cols_to_drop}')
+            if len(cols_to_drop) == 0:
+                break;
+
+            cols = [x for x in cols if x not in cols_to_drop]
+            logging.info(f'AV #{count}: columns to keep: {cols}')
             count += 1
 
         X = X[:, cols]
@@ -195,8 +200,6 @@ class Model:
         num_test_samples = X.shape[0]
         if X.ndim > 1: num_feat = X.shape[1]
         logging.info(("PREDICT: dim(X)= [{:d}, {:d}]").format(num_test_samples, num_feat))
-        if (self.num_feat != num_feat):
-            logging.info("ARRGH: number of features in X does not match training data!")
         logging.info(("PREDICT: dim(y)= [{:d}, {:d}]").format(num_test_samples, self.num_labels))
         y= self.clf.predict_proba(X)[:, 1]
         y= np.transpose(y)

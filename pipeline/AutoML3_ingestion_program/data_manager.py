@@ -210,6 +210,7 @@ class DataManager:
 
 		# Check the available types of features
                 if verbose: print("========================")
+                """
                 if usetime != []:
                         if verbose: print("=== Processing %d Time features " % len(usetime))
                         try:
@@ -220,6 +221,7 @@ class DataManager:
                                 del dftime
                                 del ddt
                         except:	print ("Failed to load time variables")
+                """
 
                 if usenum != []:
                         if verbose: print("=== Processing %d Numerical features " % len(usenum))
