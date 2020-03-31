@@ -15,7 +15,7 @@ from os.path import isfile
 import time
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
-from kaggler.preprocessing import FrequencyEncoder
+from kaggler.preprocessing import LabelEncoder
 
 
 SEED = 42
@@ -92,7 +92,7 @@ class Model:
 
         # Frequency encode categorical variables and concatenate them with numerical variables
         if categorical_cols > 0:
-            self.cat_encs = FrequencyEncoder()
+            self.cat_encs = LabelEncoder()
             X_cat = self.cat_encs.fit_transform(F['CAT']).values
             X = np.concatenate((X, X_cat), axis=1)
             del X_cat

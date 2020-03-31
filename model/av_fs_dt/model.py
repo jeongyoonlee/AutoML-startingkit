@@ -28,7 +28,7 @@ GINI_THRESHOLD = .1
 logging.basicConfig(format='%(asctime)s   %(levelname)s   %(message)s',
                     level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
-                    filename='av_fs.log')
+                    filename='av_fs_dt.log')
 
 
 params = {'num_leaves': 31,
@@ -163,7 +163,7 @@ class Model:
         count = 0
         av_auc_threshold = .8
         while av_auc > av_auc_threshold:
-            model_av = RandomForestClassifier(min_samples_leaf=20,
+            model_av = DecisionTreeClassifier(min_samples_leaf=20,
                                               min_impurity_decrease=.01,
                                               random_state=SEED)
             model_av.fit(X_all[:, cols], y_all)

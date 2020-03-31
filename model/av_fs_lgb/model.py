@@ -155,6 +155,7 @@ class Model:
 
         X_all = np.vstack((self.X, X))
         y_all = np.concatenate((np.zeros(n_trn,), np.ones(n_tst,)))
+        X_trn, X_val, y_trn, y_val = train_test_split(X_all, y_all, test_size=.25, random_state=SEED)
         logging.info(f'AV: {X_all.shape}, {y_all.shape}')
         logging.info(f'AV: {np.unique(y_all)}')
 
@@ -163,13 +164,14 @@ class Model:
         count = 0
         av_auc_threshold = .8
         while av_auc > av_auc_threshold:
-            model_av = RandomForestClassifier(min_samples_leaf=20,
-                                              min_impurity_decrease=.01,
-                                              random_state=SEED)
-            model_av.fit(X_all[:, cols], y_all)
+            model_av = LGBMClassifier(**params)
+            model_av.fit(X_trn[:, cols], y_trn,
+                         eval_set=(X_val[:, cols], y_val),
+                         early_stopping_rounds=10,
+                         verbose=10)
 
-            ps_all = model_av.predict_proba(X_all[:, cols])[:, 1]
-            av_auc = roc_auc_score(y_all, ps_all)
+            ps_val = model_av.predict_proba(X_val[:, cols])[:, 1]
+            av_auc = roc_auc_score(y_val, ps_val)
             logging.info(f'AV #{count}: AUC={av_auc * 100: 3.2f}')
 
             imp = pd.DataFrame({'feature': cols,
