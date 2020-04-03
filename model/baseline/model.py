@@ -15,6 +15,7 @@ from os.path import isfile
 import time
 from lightgbm import LGBMClassifier
 from sklearn.model_selection import train_test_split
+from kaggler.preprocessing import LabelEncoder
 
 
 SEED = 42
@@ -81,11 +82,20 @@ class Model:
         logging.info("[***] Overall time spent %5.2f sec" % overall_spenttime)
         logging.info("[***] Dataset time spent %5.2f sec" % dataset_spenttime)
 
-        # only get numerical variables
-        X=F['numerical']
+        date_cols = datainfo['loaded_feat_types'][0]
+        numeric_cols = datainfo['loaded_feat_types'][1]
+        categorical_cols = datainfo['loaded_feat_types'][2]
+        multicategorical_cols = datainfo['loaded_feat_types'][3]
 
-        # convert NaN to zeros
-        X = data_converter.replace_missing(X)
+        # Get numerical variables and replace NaNs with 0s
+        X = np.nan_to_num(F['numerical'])
+
+        # Frequency encode categorical variables and concatenate them with numerical variables
+        if categorical_cols > 0:
+            self.cat_encs = LabelEncoder()
+            X_cat = self.cat_encs.fit_transform(F['CAT']).values
+            X = np.concatenate((X, X_cat), axis=1)
+            del X_cat
 
         self.num_train_samples = X.shape[0]
         self.num_feat = X.shape[1]
@@ -124,14 +134,22 @@ class Model:
         logging.info("[***] Overall time spent %5.2f sec" % overall_spenttime)
         logging.info("[***] Dataset time spent %5.2f sec" % dataset_spenttime)
 
-        # only get numerical variables
-        X=F['numerical']
+        date_cols = datainfo['loaded_feat_types'][0]
+        numeric_cols = datainfo['loaded_feat_types'][1]
+        categorical_cols = datainfo['loaded_feat_types'][2]
+        multicategorical_cols = datainfo['loaded_feat_types'][3]
 
-        # convert NaN to zeros
-        X = data_converter.replace_missing(X)
+        # Get numerical variables and replace NaNs with 0s
+        X = np.nan_to_num(F['numerical'])
+
+        # Frequency encode categorical variables and concatenate them with numerical variables
+        if categorical_cols > 0:
+            X_cat = self.cat_encs.transform(F['CAT']).values
+            X = np.concatenate((X, X_cat), axis=1)
+            del X_cat
 
         num_test_samples = X.shape[0]
-        if X.ndim>1: num_feat = X.shape[1]
+        if X.ndim > 1: num_feat = X.shape[1]
         logging.info(("PREDICT: dim(X)= [{:d}, {:d}]").format(num_test_samples, num_feat))
         if (self.num_feat != num_feat):
             logging.info("ARRGH: number of features in X does not match training data!")

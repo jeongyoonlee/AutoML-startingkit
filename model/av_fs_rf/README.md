@@ -1,10 +1,10 @@
-# `av_fs_dt`: An adversarial validation with feature selection and Decision Trees adversarial classifer
+# `av_fs_rf`: An adversarial validation with feature selection and Random Forests adversarial classifer
 
 This model is based on the `baseline` model, which uses the setup as follows:
 
 * At each batch, it trains a model only with new training data without using previous training data
 * At each batch, it uses 100% of training data
-* It uses scikit-learn's DecisionTreeClassifier
+* It uses scikit-learn's RandomForestClassifer
 * It imputes missing values in numerical features with zeros
 * It label-encodes categorical features with missing values as a new label
 

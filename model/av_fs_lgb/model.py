@@ -28,7 +28,7 @@ GINI_THRESHOLD = .1
 logging.basicConfig(format='%(asctime)s   %(levelname)s   %(message)s',
                     level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
-                    filename='av_fs.log')
+                    filename='av_fs_lgb.log')
 
 
 params = {'num_leaves': 31,
@@ -92,7 +92,7 @@ class Model:
         multicategorical_cols = datainfo['loaded_feat_types'][3]
 
         # Get numerical variables and replace NaNs with 0s
-        self.X = np.nan_to_num(F['numerical'])
+        self.X = F['numerical']
         self.y = y
 
         # Frequency encode categorical variables and concatenate them with numerical variables
@@ -135,7 +135,7 @@ class Model:
         multicategorical_cols = datainfo['loaded_feat_types'][3]
 
         # Get numerical variables and replace NaNs with 0s
-        X = np.nan_to_num(F['numerical'])
+        X = F['numerical']
 
         # Frequency encode categorical variables and concatenate them with numerical variables
         if categorical_cols > 0:

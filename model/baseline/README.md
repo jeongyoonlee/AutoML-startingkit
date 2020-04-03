@@ -1,11 +1,12 @@
-# `baseline`: A baseline model
+# `baseline`: A baseline model with label encoding of categorical features
 
-This baseline model is based on `AutoML3_sample_code_submission`, which uses the setup as follows:
+This model is based on the AutoML3 sample model, which uses the setup as follows:
 
 * At each batch, it trains a model only with new training data without using previous training data
+* At each batch, it uses 100% of training data
+* It uses scikit-learn's GradientBoostingClassifier
 
-We added an update to `AutoML3_sample_code_submission` as follows:
+We added an update to `baseline` as follows:
 
-* It uses LightGBM's LGBMClassifier instead of scikit-learn's GradientBosstingClassifier
-* At each batch, it uses 100% of training data instead of 90% random samples
-
+* It uses LightGBM's LGBMClassifier
+* It label-encodes categorical features with missing values as a new label

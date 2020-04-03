@@ -28,7 +28,7 @@ GINI_THRESHOLD = .1
 logging.basicConfig(format='%(asctime)s   %(levelname)s   %(message)s',
                     level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
-                    filename='av_val_num.log')
+                    filename='av_val.log')
 
 
 params = {'num_leaves': 31,

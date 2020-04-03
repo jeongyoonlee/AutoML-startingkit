@@ -9,25 +9,26 @@ PLEASE NOTE THAT WE ARE PASSING THE INFO OF THE DATA SET AS AN ADDITIONAL ARGUME
 '''
 import pickle
 import data_converter
+import logging
 import numpy as np   # We recommend to use numpy arrays
 from os.path import isfile
 import time
-from causalml.propensity import calibrate
 from lightgbm import LGBMClassifier
-import logging
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from kaggler.preprocessing import LabelEncoder
 
 
 SEED = 42
 GINI_THRESHOLD = .1
 
-
 logging.basicConfig(format='%(asctime)s   %(levelname)s   %(message)s',
                     level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S',
-                    filename='av_ipw_num.log')
+                    filename='av_fs_rf.log')
 
 
 params = {'num_leaves': 31,
@@ -89,13 +90,17 @@ class Model:
         numeric_cols = datainfo['loaded_feat_types'][1]
         categorical_cols = datainfo['loaded_feat_types'][2]
         multicategorical_cols = datainfo['loaded_feat_types'][3]
-        logging.info(f'date_cols: {date_cols}')
-        logging.info(f'numeric_cols: {numeric_cols}')
-        logging.info(f'categorical_cols: {categorical_cols}')
 
         # Get numerical variables and replace NaNs with 0s
-        self.X = np.nan_to_num(F['numerical'][date_cols:])
+        self.X = np.nan_to_num(F['numerical'])
         self.y = y
+
+        # Frequency encode categorical variables and concatenate them with numerical variables
+        if categorical_cols > 0:
+            self.cat_encs = LabelEncoder()
+            X_cat = self.cat_encs.fit_transform(F['CAT']).values
+            self.X = np.concatenate((self.X, X_cat), axis=1)
+            del X_cat
 
         self.num_train_samples = self.X.shape[0]
         self.num_feat = self.X.shape[1]
@@ -130,7 +135,13 @@ class Model:
         multicategorical_cols = datainfo['loaded_feat_types'][3]
 
         # Get numerical variables and replace NaNs with 0s
-        X = np.nan_to_num(F['numerical'][date_cols:])
+        X = np.nan_to_num(F['numerical'])
+
+        # Frequency encode categorical variables and concatenate them with numerical variables
+        if categorical_cols > 0:
+            X_cat = self.cat_encs.transform(F['CAT']).values
+            X = np.concatenate((X, X_cat), axis=1)
+            del X_cat
 
         # Adversarial validation
         logging.info('AV: starting adversarial validation...')
@@ -145,40 +156,54 @@ class Model:
         X_all = np.vstack((self.X, X))
         y_all = np.concatenate((np.zeros(n_trn,), np.ones(n_tst,)))
         logging.info(f'AV: {X_all.shape}, {y_all.shape}')
+        logging.info(f'AV: {np.unique(y_all)}')
 
-        # Train an adversarial validation classifier
-        ps_all = np.zeros_like(y_all, dtype=float)
-        for i, (i_trn, i_val) in enumerate(cv.split(X_all, y_all)):
+        av_auc = 1.
+        cols = np.arange(n_feature)
+        count = 0
+        av_auc_threshold = .8
+        while av_auc > av_auc_threshold:
+            model_av = RandomForestClassifier(min_samples_leaf=20,
+                                              min_impurity_decrease=.01,
+                                              random_state=SEED)
+            model_av.fit(X_all[:, cols], y_all)
 
-            model_av = LGBMClassifier(**params)
-            model_av.fit(X_all[i_trn], y_all[i_trn],
-                        eval_set=(X_all[i_val], y_all[i_val]),
-                        early_stopping_rounds=10,
-                        verbose=10)
+            ps_all = model_av.predict_proba(X_all[:, cols])[:, 1]
+            av_auc = roc_auc_score(y_all, ps_all)
+            logging.info(f'AV #{count}: AUC={av_auc * 100: 3.2f}')
 
-            ps_all[i_val] = model_av.predict_proba(X_all[i_val])[:, 1]
+            imp = pd.DataFrame({'feature': cols,
+                                'importance': model_av.feature_importances_})
+            imp = imp.sort_values('importance', ascending=False)
+            logging.info(f'AV #{count}: feature importance\n{imp.head(10)}')
 
-        av_score = roc_auc_score(y_all, ps_all)
-        logging.info(f'AV: AUC={av_score * 100: 3.2f}')
+            # Select features
+            cols_to_drop = imp.loc[imp.importance > GINI_THRESHOLD, 'feature'].values[:int(np.ceil(len(cols) * .1))]
+            logging.info(f'AV #{count}: columns to drop: {cols_to_drop}')
+            if av_auc <= av_auc_threshold or len(cols_to_drop) == 0:
+                break
 
-        ps_all = np.clip(calibrate(ps_all, y_all), .1, .9)
-        w_all = ps_all / (1 - ps_all)
-        logging.info(f'AV: propensity scores deciles: {np.percentile(ps_all, np.linspace(0, 1, 11))}')
+            cols = [x for x in cols if x not in cols_to_drop]
+            logging.info(f'AV #{count}: columns to keep: {cols}')
+            count += 1
+
+        X = X[:, cols]
+        self.X = self.X[:, cols]
+        logging.info(f'AV: # of features after selection: {X.shape[1]}')
 
         # Training
-        X_trn, X_val, y_trn, y_val, w_trn, w_val = train_test_split(self.X, self.y, w_all[:n_trn], test_size=.25, random_state=SEED)
+        X_trn, X_val, y_trn, y_val = train_test_split(self.X, self.y, test_size=.25, random_state=SEED)
         self.clf.fit(X_trn, y_trn,
                      eval_set=(X_val, y_val),
                      early_stopping_rounds=10,
-                     verbose=10,
-                     sample_weight=w_trn)
+                     verbose=10)
 
         num_test_samples = X.shape[0]
-        num_feat = X.shape[1]
+        if X.ndim > 1: num_feat = X.shape[1]
         logging.info(("PREDICT: dim(X)= [{:d}, {:d}]").format(num_test_samples, num_feat))
         logging.info(("PREDICT: dim(y)= [{:d}, {:d}]").format(num_test_samples, self.num_labels))
-        y = self.clf.predict_proba(X)[:, 1]
-        y = np.transpose(y)
+        y= self.clf.predict_proba(X)[:, 1]
+        y= np.transpose(y)
         return y
 
     def save(self, path="./"):
