@@ -1,6 +1,6 @@
-# AutoML3 Starting Kit
+# Adversarial Validation Approach to Concept Drift Problem in Automated Machine Learning Systems
 
-This repository provides a revised version of AutoML3 starting kit.
+This repository provides code for the paper titled "Adversarial Validation Approach to Concept Drift Problem in Automated Machine Learning Systems". The code is based on the AutoML3 starting kit.
 
 The original AutoML3 starting kit and public input data distributed by the organizers are available at [the AutoML3 competition site](https://competitions.codalab.org/competitions/19836#participate).
 
