@@ -4,6 +4,18 @@ This repository provides code for the paper titled "Adversarial Validation Appro
 
 The original AutoML3 starting kit and public input data distributed by the organizers are available at [the AutoML3 competition site](https://competitions.codalab.org/competitions/19836#participate).
 
+# Adversarial Validation Methods
+
+Three different adversarial validation methods are implemented: feature selection, validation selection and inverse propensity weighting. For the feature selection method, three algorithms of GBDT, Decision Trees, and Random Forests are used in adversarial classifier model training.
+
+Model code for each method is available as follows:
+* `model/baseline/`: The baseline model without adversarial validation
+* `model/av_fs_dt/`: The adversarial validation with feature selection and decision tree adversarial classifier
+* `model/av_fs_rf/`: The adversarial validation with feature selection and random forests classifier
+* `model/av_fs_lgb/`: The adversarial validation with feature selection and gradient boosted decision trees classifier
+* `model/av_val/`: The adversarial validation with validation selection
+* `model/av_ipw/`: The adversarial validation with inverse propensity weighting
+
 # How to Run
 
 You can run the data ingestion, model training and scoring as follows:
@@ -12,7 +24,7 @@ $ ./run.sh [model folder] [data folder]
 ```
 For example, to run the starting kit with sample model code and data, run `run.sh` as follows:
 ```bash
-$ ./run.sh model/AutoML3_sample_code_submission AutoML3_sample_data
+$ ./run.sh model/baseline AutoML3_sample_data
 ```
 
 The output files including predictions and scores are saved in `build/[model name]`.
