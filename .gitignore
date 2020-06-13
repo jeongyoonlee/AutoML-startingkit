@@ -7,3 +7,4 @@ data
 res/
 *.predict
 AutoML3_scoring_output
+*.log
